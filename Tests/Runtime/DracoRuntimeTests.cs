@@ -1,89 +1,105 @@
-﻿using System.Collections;
+﻿// Copyright 2021 The Draco Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.Rendering;
 using UnityEngine.TestTools;
 
 namespace Draco.Tests
 {
+    
     public class DracoRuntimeTests {
+        
+        const string k_URLPrefix = "https://raw.githubusercontent.com/google/draco/master/testdata/";
+        
         [UnityTest]
         [UseDracoTestFileCase(new[] {
-            "https://raw.githubusercontent.com/google/draco/master/testdata/car.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att.obj.edgebreaker.cl10.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att.obj.edgebreaker.cl4.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att.obj.sequential.cl3.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att_sub_o_2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att_sub_o_no_metadata.drc",
-            
-            // // Point clouds are not supported
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/cube_pc.drc",
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/pc_color.drc",
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/pc_kd_color.drc",
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/point_cloud_no_qp.drc",
-            
-            // // Legacy versions not supported
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.0.10.0.drc",
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.0.9.1.drc",
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.1.0.0.drc",
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.1.1.0.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.1.2.0.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.cl10.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.cl4.2.2.drc",
+            "bunny_gltf.drc",
+            "car.drc",
+            "cube_att.obj.edgebreaker.cl10.2.2.drc",
+            "cube_att.obj.edgebreaker.cl4.2.2.drc",
+            "cube_att.obj.sequential.cl3.2.2.drc",
+            "cube_att_sub_o_2.drc",
+            "cube_att_sub_o_no_metadata.drc",
+            "octagon_preserved.drc",
+            "pc_kd_color.drc",
+            "point_cloud_no_qp.drc",
+            "test_nm.obj.edgebreaker.cl10.2.2.drc",
+            "test_nm.obj.edgebreaker.cl4.2.2.drc",
+            "test_nm.obj.sequential.cl3.2.2.drc",
             
             // // Legacy versions not supported
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.sequential.0.10.0.drc",
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.sequential.0.9.1.drc",
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.sequential.1.0.0.drc",
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.sequential.1.1.0.drc",
+            // "cube_pc.drc",
+            // "pc_color.drc",
+            // "test_nm.obj.edgebreaker.0.10.0.drc",
+            // "test_nm.obj.edgebreaker.0.9.1.drc",
+            // "test_nm.obj.edgebreaker.1.0.0.drc",
+            // "test_nm.obj.edgebreaker.1.1.0.drc",
+            // "test_nm.obj.sequential.0.10.0.drc",
+            // "test_nm.obj.sequential.0.9.1.drc",
+            // "test_nm.obj.sequential.1.0.0.drc",
+            // "test_nm.obj.sequential.1.1.0.drc",
+            // "test_nm_quant.0.9.0.drc",
             
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.sequential.1.2.0.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.sequential.cl3.2.2.drc",
-            
-            // // Legacy versions not supported
-            // "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm_quant.0.9.0.drc"
+            // // Unknown why it does not work
+            // "cube_att.drc",
         })]
         public IEnumerator LoadDracoOfficialTestData(string url) {
-            yield return RunTest(url);
+            yield return RunTest(k_URLPrefix+url);
         }
 
         [UnityTest]
         [UseDracoTestFileCase(new[] {
-            "https://raw.githubusercontent.com/google/draco/master/testdata/car.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att.obj.edgebreaker.cl10.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att.obj.edgebreaker.cl4.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att.obj.sequential.cl3.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att_sub_o_2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att_sub_o_no_metadata.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.1.2.0.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.cl10.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.cl4.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.sequential.1.2.0.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.sequential.cl3.2.2.drc",
+            "bunny_gltf.drc",
+            "car.drc",
+            "cube_att.obj.edgebreaker.cl10.2.2.drc",
+            "cube_att.obj.edgebreaker.cl4.2.2.drc",
+            "cube_att.obj.sequential.cl3.2.2.drc",
+            "cube_att_sub_o_2.drc",
+            "cube_att_sub_o_no_metadata.drc",
+            "octagon_preserved.drc",
+            "test_nm.obj.edgebreaker.cl10.2.2.drc",
+            "test_nm.obj.edgebreaker.cl4.2.2.drc",
+            "test_nm.obj.sequential.cl3.2.2.drc",
         })]
         public IEnumerator LoadDracoOfficialTestDataNormals(string url) {
-            yield return RunTest(url,true);
+            yield return RunTest(k_URLPrefix+url,true);
         }
         
         [UnityTest]
         [UseDracoTestFileCase(new[] {
-            "https://raw.githubusercontent.com/google/draco/master/testdata/car.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att.obj.edgebreaker.cl10.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att.obj.edgebreaker.cl4.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att.obj.sequential.cl3.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att_sub_o_2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/cube_att_sub_o_no_metadata.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.1.2.0.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.cl10.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.edgebreaker.cl4.2.2.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.sequential.1.2.0.drc",
-            "https://raw.githubusercontent.com/google/draco/master/testdata/test_nm.obj.sequential.cl3.2.2.drc",
+            "bunny_gltf.drc",
+            "car.drc",
+            "cube_att.obj.edgebreaker.cl10.2.2.drc",
+            "cube_att.obj.edgebreaker.cl4.2.2.drc",
+            "cube_att.obj.sequential.cl3.2.2.drc",
+            "cube_att_sub_o_2.drc",
+            "cube_att_sub_o_no_metadata.drc",
+            "octagon_preserved.drc",
+            "test_nm.obj.edgebreaker.cl10.2.2.drc",
+            "test_nm.obj.edgebreaker.cl4.2.2.drc",
+            "test_nm.obj.sequential.cl3.2.2.drc",
         })]
         public IEnumerator LoadDracoOfficialTestDataNormalsTangents(string url) {
-            yield return RunTest(url,true, true);
+            yield return RunTest(k_URLPrefix+url,true, true);
         }
         
         IEnumerator RunTest(string url, bool requireNormals = false, bool requireTangents = false) {
@@ -134,6 +150,33 @@ namespace Draco.Tests
                 }
             }
             await Task.Yield();
+        }
+
+        [UnityTest]
+        public IEnumerator EncodePointCloud() {
+            
+            var sphereGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            var sphere = sphereGo.GetComponent<MeshFilter>().sharedMesh;
+            var vertices = sphere.vertices;
+            
+            var mesh = new Mesh {
+                subMeshCount = 1
+            };
+            mesh.SetSubMesh(0,new SubMeshDescriptor(0,0,MeshTopology.Points));
+            mesh.vertices = vertices;
+
+            var task = Encoder.DracoEncoder.EncodeMesh(mesh);
+            while (!task.IsCompleted)
+            {
+                yield return null;
+            }
+
+            var result = task.Result;
+            Assert.NotNull(result);
+            Assert.AreEqual(1, result.Length);
+            Assert.AreEqual(2325, result[0].data.Length);
+
+            result[0].Dispose();
         }
     }
 }

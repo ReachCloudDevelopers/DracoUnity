@@ -13,36 +13,40 @@
 // limitations under the License.
 //
 
-#if UNITY_2020_2_OR_NEWER
-#define DRACO_MESH_DATA
-#endif
-
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using UnityEngine;
-using UnityEngine.Profiling;
 using UnityEngine.Rendering;
+
+[assembly: InternalsVisibleTo("DracoEditor")]
 
 namespace Draco {
 
+    /// <summary>
+    /// Provides Draco mesh decoding.
+    /// </summary>
     public class DracoMeshLoader {
         
         /// <summary>
         /// If true, coordinate space is converted from right-hand (like in glTF) to left-hand (Unity).
         /// </summary>
-        bool convertSpace;
+        bool m_ConvertSpace;
 
         /// <summary>
         /// Create a DracoMeshLoader instance which let's you decode Draco data.
         /// </summary>
         /// <param name="convertSpace">If true, coordinate space is converted from right-hand (like in glTF) to left-hand (Unity).</param>
         public DracoMeshLoader(bool convertSpace = true) {
-            this.convertSpace = convertSpace;
+            m_ConvertSpace = convertSpace;
         }
 
+        /// <summary>
+        /// Holds the result of the Draco decoding process.
+        /// </summary>
         public struct DecodeResult {
             /// <summary>
             /// True if the decoding was successful
@@ -55,37 +59,54 @@ namespace Draco {
             /// </summary>
             public bool calculateNormals;
             
-#if DRACO_MESH_DATA
             /// <summary>
             /// If the Draco file contained bone indices and bone weights,
             /// this property is used to carry them over (since MeshData currently
             /// provides no way to apply those values)
             /// </summary>
             public BoneWeightData boneWeightData;
-#endif
         }
         
-#if DRACO_MESH_DATA
+        /// <summary>
+        /// Draco encoded meshes might contain bone weights and indices that cannot be applied to the resulting Unity
+        /// mesh right away. This class provides them and offers methods to apply them to Unity meshes.
+        /// This 
+        /// </summary>
         public class BoneWeightData : IDisposable {
-            NativeArray<byte> bonesPerVertex;
-            NativeArray<BoneWeight1> boneWeights;
+            NativeArray<byte> m_BonesPerVertex;
+            NativeArray<BoneWeight1> m_BoneWeights;
 
+            /// <summary>
+            /// Constructs an object with parameters identical to <see cref="Mesh.SetBoneWeights"/>.
+            /// </summary>
+            /// <param name="bonesPerVertex">Bones per vertex </param>
+            /// <param name="boneWeights">Bone weights</param>
+            /// <seealso cref="Mesh.SetBoneWeights"/>
             public BoneWeightData(NativeArray<byte> bonesPerVertex, NativeArray<BoneWeight1> boneWeights) {
-                this.bonesPerVertex = bonesPerVertex;
-                this.boneWeights = boneWeights;
+                m_BonesPerVertex = bonesPerVertex;
+                m_BoneWeights = boneWeights;
             }
 
+            /// <summary>
+            /// Applies the bone weights and indices on a Unity mesh.
+            /// </summary>
+            /// <param name="mesh">The mesh to apply the data onto.</param>
             public void ApplyOnMesh(Mesh mesh) {
-                mesh.SetBoneWeights(bonesPerVertex,boneWeights);
+                mesh.SetBoneWeights(m_BonesPerVertex,m_BoneWeights);
             }
 
+            /// <summary>
+            /// Releases allocated resources.
+            /// </summary>
             public void Dispose() {
-                bonesPerVertex.Dispose();
-                boneWeights.Dispose();
+                m_BonesPerVertex.Dispose();
+                m_BoneWeights.Dispose();
             }
         }
-#endif
 
+        /// <summary>
+        /// <see cref="MeshUpdateFlags"/> that are used when decoding meshes from Draco data.
+        /// </summary>
         public const MeshUpdateFlags defaultMeshUpdateFlags = MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices | MeshUpdateFlags.DontNotifyMeshUsers | MeshUpdateFlags.DontResetBoneBounds;
         
         /// <summary>
@@ -108,7 +129,6 @@ namespace Draco {
             )
         {
             var encodedDataPtr = GetUnsafeReadOnlyIntPtr(encodedData);
-#if DRACO_MESH_DATA
             var meshDataArray = Mesh.AllocateWritableMeshData(1); 
             var mesh = meshDataArray[0];
             var result = await ConvertDracoMeshToUnity(
@@ -144,17 +164,6 @@ namespace Draco {
                 }
             }
             return unityMesh;
-#else
-            return await ConvertDracoMeshToUnity(
-                encodedDataPtr,
-                encodedData.Length,
-                requireNormals,
-                requireTangents,
-                weightsAttributeId,
-                jointsAttributeId,
-                forceUnityLayout
-                );
-#endif
         }
 
         /// <summary>
@@ -174,61 +183,18 @@ namespace Draco {
             int weightsAttributeId = -1,
             int jointsAttributeId = -1,
             bool forceUnityLayout = false
-#if UNITY_EDITOR
-            ,bool sync = false
-#endif
         )
         {
-            var encodedDataPtr = PinGCArrayAndGetDataAddress(encodedData, out var gcHandle);
-#if DRACO_MESH_DATA
-            var meshDataArray = Mesh.AllocateWritableMeshData(1);
-            var mesh = meshDataArray[0];
-            var result = await ConvertDracoMeshToUnity(
-                mesh,
-                encodedDataPtr,
-                encodedData.Length,
+            return await ConvertByteArray(
+                encodedData,
                 requireNormals,
                 requireTangents,
                 weightsAttributeId,
                 jointsAttributeId,
                 forceUnityLayout
-#if UNITY_EDITOR
-                ,sync
-#endif
             );
-            UnsafeUtility.ReleaseGCObject(gcHandle);
-            if (!result.success) {
-                meshDataArray.Dispose();
-                return null;
-            }
-            var unityMesh = new Mesh();
-            Mesh.ApplyAndDisposeWritableMeshData(meshDataArray,unityMesh,defaultMeshUpdateFlags);
-            if (result.calculateNormals) {
-                unityMesh.RecalculateNormals();
-            }
-            if (requireTangents) {
-                unityMesh.RecalculateTangents();
-            }
-            return unityMesh;
-#else
-            var result = await ConvertDracoMeshToUnity(
-                encodedDataPtr,
-                encodedData.Length,
-                requireNormals,
-                requireTangents,
-                weightsAttributeId,
-                jointsAttributeId,
-                forceUnityLayout
-#if UNITY_EDITOR
-                ,sync
-#endif
-            );
-            UnsafeUtility.ReleaseGCObject(gcHandle);
-            return result;
-#endif
         }
 
-#if DRACO_MESH_DATA
         /// <summary>
         /// Decodes a Draco mesh
         /// </summary>
@@ -284,13 +250,83 @@ namespace Draco {
             int weightsAttributeId = -1,
             int jointsAttributeId = -1,
             bool forceUnityLayout = false
-#if UNITY_EDITOR
-            ,bool sync = false
-#endif
-            )
+        )
         {
             var encodedDataPtr = GetUnsafeReadOnlyIntPtr(encodedData);
             return await ConvertDracoMeshToUnity(
+                mesh,
+                encodedDataPtr,
+                encodedData.Length,
+                requireNormals,
+                requireTangents,
+                weightsAttributeId,
+                jointsAttributeId,
+                forceUnityLayout
+            );
+        }
+        
+#if UNITY_EDITOR
+        internal async Task<DecodeResult> ConvertDracoMeshToUnitySync(
+            Mesh.MeshData mesh,
+            NativeArray<byte> encodedData,
+            bool requireNormals = false,
+            bool requireTangents = false,
+            int weightsAttributeId = -1,
+            int jointsAttributeId = -1,
+            bool forceUnityLayout = false
+        )
+        {
+            var encodedDataPtr = GetUnsafeReadOnlyIntPtr(encodedData);
+            return await ConvertDracoMeshToUnity(
+                mesh,
+                encodedDataPtr,
+                encodedData.Length,
+                requireNormals,
+                requireTangents,
+                weightsAttributeId,
+                jointsAttributeId,
+                forceUnityLayout,
+                true
+            );
+        }
+
+        internal async Task<Mesh> ConvertDracoMeshToUnitySync(
+            byte[] encodedData,
+            bool requireNormals = false,
+            bool requireTangents = false,
+            int weightsAttributeId = -1,
+            int jointsAttributeId = -1,
+            bool forceUnityLayout = false
+        )
+        {
+            return await ConvertByteArray(
+                encodedData,
+                requireNormals,
+                requireTangents,
+                weightsAttributeId,
+                jointsAttributeId,
+                forceUnityLayout,
+                true
+            );
+        }
+#endif
+
+        async Task<Mesh> ConvertByteArray(
+            byte[] encodedData,
+            bool requireNormals = false,
+            bool requireTangents = false,
+            int weightsAttributeId = -1,
+            int jointsAttributeId = -1,
+            bool forceUnityLayout = false
+#if UNITY_EDITOR
+            ,bool sync = false
+#endif
+        )
+        {
+            var encodedDataPtr = PinGCArrayAndGetDataAddress(encodedData, out var gcHandle);
+            var meshDataArray = Mesh.AllocateWritableMeshData(1);
+            var mesh = meshDataArray[0];
+            var result = await ConvertDracoMeshToUnity(
                 mesh,
                 encodedDataPtr,
                 encodedData.Length,
@@ -303,10 +339,23 @@ namespace Draco {
                 ,sync
 #endif
             );
+            UnsafeUtility.ReleaseGCObject(gcHandle);
+            if (!result.success) {
+                meshDataArray.Dispose();
+                return null;
+            }
+            var unityMesh = new Mesh();
+            Mesh.ApplyAndDisposeWritableMeshData(meshDataArray,unityMesh,defaultMeshUpdateFlags);
+            if (result.calculateNormals) {
+                unityMesh.RecalculateNormals();
+            }
+            if (requireTangents) {
+                unityMesh.RecalculateTangents();
+            }
+            return unityMesh;
         }
-#endif
-        
-#if DRACO_MESH_DATA
+
+
         async Task<DecodeResult> ConvertDracoMeshToUnity(
             Mesh.MeshData mesh,
             IntPtr encodedData,
@@ -320,27 +369,9 @@ namespace Draco {
             ,bool sync = false
 #endif
         )
-#else
-        async Task<Mesh> ConvertDracoMeshToUnity(
-            IntPtr encodedData,
-            int size,
-            bool requireNormals,
-            bool requireTangents,
-            int weightsAttributeId = -1,
-            int jointsAttributeId = -1,
-            bool forceUnityLayout = false
-#if UNITY_EDITOR
-            ,bool sync = false
-#endif
-            )
-#endif
         {
-#if DRACO_MESH_DATA
-            var dracoNative = new DracoNative(mesh,convertSpace);
+            var dracoNative = new DracoNative(mesh,m_ConvertSpace);
             var result = new DecodeResult();
-#else
-            var dracoNative = new DracoNative(convertSpace);
-#endif
 
 #if UNITY_EDITOR
             if (sync) {
@@ -352,17 +383,12 @@ namespace Draco {
                 await WaitForJobHandle(dracoNative.Init(encodedData, size));
             }
             if (dracoNative.ErrorOccured()) {
-#if DRACO_MESH_DATA
                 return result;
-#else
-                return null;
-#endif
             }
             if (!requireNormals && requireTangents) {
                 // Sanity check: We need normals to calculate tangents
                 requireNormals = true;
             }
-#if DRACO_MESH_DATA
             dracoNative.CreateMesh(
                 out result.calculateNormals,
                 requireNormals,
@@ -371,17 +397,6 @@ namespace Draco {
                 jointsAttributeId,
                 forceUnityLayout
                 );
-#else
-            dracoNative.CreateMesh(
-                out var calculateNormals,
-                requireNormals,
-                requireTangents,
-                weightsAttributeId,
-                jointsAttributeId,
-                forceUnityLayout
-                );
-#endif
-            
 #if UNITY_EDITOR
             if (sync) {
                 dracoNative.DecodeVertexDataSync();
@@ -394,36 +409,14 @@ namespace Draco {
             var error = dracoNative.ErrorOccured();
             dracoNative.DisposeDracoMesh();
             if (error) {
-#if DRACO_MESH_DATA
                 return result;
-#else
-                return null;
-#endif
             }
 
-#if !DRACO_MESH_DATA
-            var result = dracoNative.PopulateMeshData();
-            if (result.GetTopology(0) == MeshTopology.Triangles) {
-                if (calculateNormals) {
-                    // TODO: Consider doing this in a threaded Job
-                    Profiler.BeginSample("RecalculateNormals");
-                    result.RecalculateNormals();
-                    Profiler.EndSample();
-                }
-                if (requireTangents) {
-                    // TODO: Consider doing this in a threaded Job
-                    Profiler.BeginSample("RecalculateTangents");
-                    result.RecalculateTangents();
-                    Profiler.EndSample();
-                }
-            }
-#else
             result.success = dracoNative.PopulateMeshData();
             if (result.success && dracoNative.hasBoneWeightData) {
                 result.boneWeightData = new BoneWeightData(dracoNative.bonesPerVertex, dracoNative.boneWeights);
                 dracoNative.DisposeBoneWeightData();
             }
-#endif
             return result;
         }
 

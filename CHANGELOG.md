@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- Support for efficient self-managed encoding of multiple meshes. Users may use the advanced Mesh API to acquire readable mesh data for multiple meshes at once and pass the data on to new `DracoEncoder.EncodeMesh` overloads that accept said `MeshData`.
+- Vertex attributes information (draco identifier and dimensions) was added to `EncodeResult`
+### Changed
+- Much faster encoding due to the use of the C# Job System (threads)
+- Faster encoding due to avoiding a full memory copy of the result
+- All encoding methods are async now
+- Updated Burst dependency to version 1.8.4
+- Readonly meshes now can be encoded in the Editor
+- Removed Editor-only `sync` parameter from `DracoMeshLoader.ConvertDracoMeshToUnity` to make API stable (regardless of environment/scripting defines)
+### Fixed
+- Destroying temporary copy (instead of original) GameObject when encoding selected GameObject from the menu
+
+## [4.1.0] - 2023-04-14
+### Added
+- Support for encoding point clouds (thanks [@camnewnham][camnewnham] for #46)
+- Point cloud encoding unit test
+- Component pad byte support enables things like 3 byte RGB color vertex attributes (thanks [@camnewnham][camnewnham] for #47)
+- Encoding binaries for remaining platforms (Android, WSA, WebGL, iOS and Windows 32-bit)
+### Changed
+- Updated Draco native library binaries to [1.1.0](https://github.com/atteneder/draco/releases/tag/unity1.1.0)
+### Removed
+- 32-bit Linux binaries/support
+### Fixed
+- Unit Tests download URLs updated
+- Editor imports now calculate the correct mesh bounds
+- macOS binaries are now loaded on Apple Silicon properly
+
 ## [4.0.2] - 2022-01-20
 ### Fixed
 - Theoretical crash on unsupported indices data type. Removes compiler warning about throwing exception in C# job.
@@ -18,7 +47,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WebGL library is built with Emscripten 2.0.19 now
 - Minimum required version is Unity 2021.2
 
-## [3.3.2] - 2021-10-27 
+## [3.4.0] - 2023-04-14
+### Added
+- Support for encoding point clouds (thanks [@camnewnham][camnewnham] for #46)
+- Point cloud encoding unit test
+- Component pad byte support enables things like 3 byte RGB color vertex attributes (thanks [@camnewnham][camnewnham] for #47)
+- Encoding binaries for remaining platforms (Android, WSA, WebGL, iOS and Windows 32-bit)
+### Changed
+- Minimum required Unity version is 2020.3 LTS now
+- Updated Draco native library binaries to [1.1.0](https://github.com/atteneder/draco/releases/tag/unity1.1.0)
+### Removed
+- 32-bit Linux binaries/support
+### Fixed
+- Unit Tests download URLs updated
+- Editor imports now calculate the correct mesh bounds
+- macOS binaries are now loaded on Apple Silicon properly
+
+## [3.3.2] - 2021-10-27
 ### Added
 - Error message when users try to run DracoUnity 3.x Unity >=2021.2 combination targeting WebGL
 

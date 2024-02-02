@@ -24,16 +24,21 @@ using UnityEditor.Experimental.AssetImporters;
 namespace Draco.Editor {
 
     [ScriptedImporter(1, "drc")]
-    public class DracoImporter : ScriptedImporter {
+    class DracoImporter : ScriptedImporter {
 
         public override async void OnImportAsset(AssetImportContext ctx) {
+#if NET_UNITY_4_8 // Unity 2021 or newer
+            var dracoData = await File.ReadAllBytesAsync(ctx.assetPath);
+#else
             var dracoData = File.ReadAllBytes(ctx.assetPath);
+#endif
             var draco = new DracoMeshLoader();
-            var mesh = await draco.ConvertDracoMeshToUnity(dracoData, sync: true);
+            var mesh = await draco.ConvertDracoMeshToUnitySync(dracoData);
             if (mesh == null) {
                 Debug.LogError("Import draco file failed");
                 return;
             }
+            mesh.RecalculateBounds();
             ctx.AddObjectToAsset("mesh", mesh);
             ctx.SetMainObject(mesh);
         }
